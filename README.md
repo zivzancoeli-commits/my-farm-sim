@@ -8,3 +8,6 @@
 - It currently just has different scenes like settings and is made to later have a background and smaller details
 - You can move around
 - You can save the world (it might not work because I haven't tested it fully yet)
+
+# How to play
+Go to https://zivzancoeli-commits.github.io/my-farm-sim/ which should have a working game but I just uploaded it right before the deadline. Sry
