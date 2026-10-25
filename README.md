@@ -6,6 +6,7 @@
 - A hotbar
 - Working tools
 - Sprites for the player, items, and blocks
+- Whatever's in your hand gets displayed
 
 ## Problems I ran into
 - The player would be visible with blocks in the way (still kind of a bug)
