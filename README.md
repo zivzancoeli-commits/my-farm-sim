@@ -5,6 +5,7 @@
 - A movement system that stops you from walking through blocks, over blocks, or jumping into the void of despair and sorrow
 - A hotbar
 - Working tools
+- Sprites for the player, items, and blocks
 
 ## Problems I ran into
 - The player would be visible with blocks in the way (still kind of a bug)
@@ -13,7 +14,6 @@
 - It shook whenever you moved because of a camera smoothing change I added
 
 ## What I'm adding next
-- proper sprites rather than just text like "pickaxe" or a part of the sprite for the block
 - World generation that will "borrow" the way Minecraft does it using sound
 - NPCs that can give quests
 - A shop along with new tools
