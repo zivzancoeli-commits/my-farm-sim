@@ -10,10 +10,10 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 ROOT = Path("/Users/boys/Projects/Farm Sim/sprites")
-TOP_DIR = ROOT / "top"
-FRONT_DIR = ROOT / "front"
-OUT_DIR = ROOT / "held"
-MIRROR_DIR = Path("/Users/boys/Documents/Sprites/held")
+TOP_DIR = ROOT / "blocks" / "top"
+FRONT_DIR = ROOT / "blocks" / "front"
+OUT_DIR = ROOT / "blocks" / "held"
+MIRROR_DIR = Path("/Users/boys/Documents/Sprites/blocks/held")
 
 OUTLINE = (58, 42, 26, 255)
 SKIP_SUFFIXES = ("_slope", "_stairs")
