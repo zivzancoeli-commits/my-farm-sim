@@ -1,0 +1,449 @@
+#!/usr/bin/env python3
+"""Generate 16x16 isometric held-block sprites from top/front face textures."""
+from __future__ import annotations
+
+import collections
+import math
+import os
+from pathlib import Path
+
+from PIL import Image, ImageDraw
+
+ROOT = Path("/Users/boys/Projects/Farm Sim/sprites")
+TOP_DIR = ROOT / "top"
+FRONT_DIR = ROOT / "front"
+OUT_DIR = ROOT / "held"
+MIRROR_DIR = Path("/Users/boys/Documents/Sprites/held")
+
+OUTLINE = (58, 42, 26, 255)  # warm dark #3a2a1a-ish
+SKIP_SUFFIXES = ("_slope", "_stairs")  # skip awkward shapes
+SLAB_SUFFIX = "_slab"
+
+# Forced / special color overrides (top, left, right) as RGB
+SPECIAL = {
+    "glass_block": {
+        "top": (160, 210, 230),
+        "left": (90, 150, 180),
+        "right": (120, 180, 210),
+        "alpha": 140,
+        "highlight": (230, 245, 255),
+    },
+    "water": {
+        "top": (72, 144, 208),
+        "left": (40, 96, 160),
+        "right": (56, 128, 192),
+        "alpha": 200,
+        "highlight": (180, 220, 245),
+    },
+}
+
+
+def clamp(v, lo=0, hi=255):
+    return max(lo, min(hi, int(v)))
+
+
+def shade(rgb, factor):
+    r, g, b = rgb[:3]
+    return (clamp(r * factor), clamp(g * factor), clamp(b * factor))
+
+
+def lighten(rgb, amt):
+    r, g, b = rgb[:3]
+    return (clamp(r + amt), clamp(g + amt), clamp(b + amt))
+
+
+def darken(rgb, amt):
+    r, g, b = rgb[:3]
+    return (clamp(r - amt), clamp(g - amt), clamp(b - amt))
+
+
+def sample_dominant(path: Path, n=5, quant=16):
+    im = Image.open(path).convert("RGBA")
+    pixels = [p for p in im.getdata() if p[3] > 180]
+    if not pixels:
+        return [(128, 128, 128)]
+    rounded = [((r // quant) * quant, (g // quant) * quant, (b // quant) * quant) for r, g, b, a in pixels]
+    counts = collections.Counter(rounded)
+    # Prefer mid-brightness colors (skip pure black/white extremes a bit)
+    ranked = []
+    for col, c in counts.most_common(20):
+        bri = sum(col)
+        if bri < 30 or bri > 720:
+            continue
+        ranked.append((c, col))
+    if not ranked:
+        ranked = [(c, col) for col, c in counts.most_common(n)]
+    ranked.sort(key=lambda x: -x[0])
+    return [col for _, col in ranked[:n]]
+
+
+def avg_color(path: Path, quant=8):
+    cols = sample_dominant(path, n=3, quant=quant)
+    if not cols:
+        return (128, 128, 128)
+    r = sum(c[0] for c in cols) // len(cols)
+    g = sum(c[1] for c in cols) // len(cols)
+    b = sum(c[2] for c in cols) // len(cols)
+    return (r, g, b)
+
+
+def pick_top_front(name: str):
+    """Return (top_rgb, left_rgb, right_rgb, alpha, highlight_or_None)."""
+    if name in SPECIAL:
+        s = SPECIAL[name]
+        return s["top"], s["left"], s["right"], s.get("alpha", 255), s.get("highlight")
+
+    top_path = TOP_DIR / f"{name}_top.png"
+    front_path = FRONT_DIR / f"{name}_front.png"
+
+    # Grass: green top, dirt sides
+    if name == "grass" or name.startswith("grass_"):
+        top = avg_color(top_path)
+        # bias toward green
+        top_cols = sample_dominant(top_path, n=8, quant=16)
+        greens = [c for c in top_cols if c[1] > c[0] and c[1] > c[2]]
+        top = greens[0] if greens else top
+        if front_path.exists():
+            front_cols = sample_dominant(front_path, n=8, quant=16)
+            browns = [c for c in front_cols if c[0] >= c[1] and c[1] >= c[2] and c[0] > 60]
+            side = browns[0] if browns else avg_color(front_path)
+        else:
+            side = (112, 64, 32)
+        return top, shade(side, 0.85), side, 255, lighten(top, 30)
+
+    # Farmland: furrowed brown top
+    if name in ("farmland", "wet_farmland"):
+        top = avg_color(top_path)
+        side = avg_color(front_path) if front_path.exists() else darken(top, 40)
+        if name == "wet_farmland":
+            top = darken(top, 15)
+            top = (clamp(top[0] - 10), clamp(top[1] - 5), clamp(top[2] + 10))
+        return top, shade(side, 0.8), shade(side, 0.95), 255, lighten(top, 25)
+
+    top = avg_color(top_path)
+    if front_path.exists():
+        side = avg_color(front_path)
+    else:
+        side = shade(top, 0.75)
+
+    left = shade(side, 0.78)
+    right = shade(side, 0.95)
+    # Keep top a bit brighter/distinct
+    top = lighten(top, 8)
+    return top, left, right, 255, lighten(top, 28)
+
+
+def in_diamond(x, y, cx, cy, hw, hh):
+    """Point in diamond centered at (cx,cy) with half-width hw, half-height hh."""
+    return abs((x + 0.5 - cx) / hw) + abs((y + 0.5 - cy) / hh) <= 1.0
+
+
+def draw_cube(size=16, top=(100, 160, 60), left=(90, 60, 30), right=(120, 80, 40),
+              alpha=255, highlight=None, slab=False, detail=None):
+    """Draw a crisp mini isometric cube into a size x size RGBA image."""
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    px = im.load()
+
+    # Geometry for 16x16 (slightly inset for outline room)
+    # Top diamond center and extents
+    if slab:
+        # shorter: top lower, sides shorter
+        tcx, tcy = 7.5, 5.0
+        thw, thh = 6.5, 3.5
+        side_h = 4  # vertical drop of sides
+    else:
+        tcx, tcy = 7.5, 4.0
+        thw, thh = 6.5, 3.5
+        side_h = 7
+
+    top_bottom_y = tcy + thh  # ~7.5 full, ~8.5 slab
+    # Bottom tip of cube
+    bot_y = top_bottom_y + side_h  # ~14.5 / ~12.5
+
+    def rgba(rgb, a=None):
+        a = alpha if a is None else a
+        return (rgb[0], rgb[1], rgb[2], a)
+
+    # Collect face pixels
+    top_pixels = []
+    left_pixels = []
+    right_pixels = []
+
+    for y in range(size):
+        for x in range(size):
+            # Top face diamond
+            if in_diamond(x, y, tcx, tcy, thw, thh):
+                top_pixels.append((x, y))
+                continue
+
+            # Below top diamond: left and right faces
+            # Left face: from left tip of diamond down to bottom
+            # Use scanline: for each y below top, find left/right edges of diamond projected
+
+    # More reliable polygon fill via ImageDraw then recolor
+    draw = ImageDraw.Draw(im)
+
+    # Top diamond points (clockwise from top)
+    top_pts = [
+        (tcx, tcy - thh),
+        (tcx + thw, tcy),
+        (tcx, tcy + thh),
+        (tcx - thw, tcy),
+    ]
+    # Left face: left tip, bottom of top, bottom center-left, lower left
+    left_pts = [
+        (tcx - thw, tcy),
+        (tcx, tcy + thh),
+        (tcx, bot_y),
+        (tcx - thw, bot_y - thh),
+    ]
+    # Right face
+    right_pts = [
+        (tcx + thw, tcy),
+        (tcx, tcy + thh),
+        (tcx, bot_y),
+        (tcx + thw, bot_y - thh),
+    ]
+
+    # Draw faces (order: left, right, top so top wins overlaps)
+    draw.polygon(left_pts, fill=rgba(left))
+    draw.polygon(right_pts, fill=rgba(right))
+    draw.polygon(top_pts, fill=rgba(top))
+
+    # Pixel-level cleanup + shading + outline
+    # Re-read and apply per-face shading bands + outline
+    data = im.load()
+
+    # Identify faces by flood from known centers
+    def face_at(x, y):
+        if x < 0 or y < 0 or x >= size or y >= size:
+            return None
+        if data[x, y][3] == 0:
+            return None
+        # classify by geometry
+        if in_diamond(x, y, tcx, tcy, thw + 0.15, thh + 0.15):
+            return "top"
+        # below diamond
+        if y > tcy:
+            if x + 0.5 < tcx:
+                return "left"
+            return "right"
+        return "top"
+
+    # Apply subtle vertical shading on sides + highlight on top
+    for y in range(size):
+        for x in range(size):
+            p = data[x, y]
+            if p[3] == 0:
+                continue
+            face = face_at(x, y)
+            if face == "top":
+                # ridge highlight near top tip
+                dy = y - (tcy - thh)
+                if highlight and dy < 2.5 and abs(x + 0.5 - tcx) < 2.5:
+                    data[x, y] = rgba(highlight)
+                elif detail == "furrows" and int(y + x) % 3 == 0:
+                    data[x, y] = rgba(darken(top, 22))
+                elif detail == "grass_dots" and (x + y * 3) % 5 == 0 and y > tcy - 1:
+                    data[x, y] = rgba(lighten(top, 20))
+                elif detail == "planks" and int(y) % 2 == 0:
+                    data[x, y] = rgba(darken(top, 12))
+                elif detail == "bricks" and ((x // 2) + (y // 2)) % 2 == 0:
+                    data[x, y] = rgba(darken(top, 18))
+                elif detail == "ore" and (x * 7 + y * 3) % 11 == 0:
+                    # speckles added later
+                    pass
+            elif face == "left":
+                # darker toward bottom
+                t = (y - top_bottom_y) / max(1, side_h)
+                data[x, y] = rgba(shade(left, 1.0 - 0.15 * t))
+            elif face == "right":
+                t = (y - top_bottom_y) / max(1, side_h)
+                data[x, y] = rgba(shade(right, 1.0 - 0.12 * t))
+
+    # Ore speckles
+    if detail == "ore":
+        ore_col = {
+            "coal_ore": (30, 30, 30),
+            "iron_ore": (200, 170, 140),
+            "gold_ore": (230, 190, 50),
+        }.get(detail_name if False else None)
+    # handled below with name
+
+    # Outline: any transparent neighbor of opaque -> outline on empty? 
+    # Better: darken edge pixels of the shape
+    opaque = {(x, y) for y in range(size) for x in range(size) if data[x, y][3] > 0}
+    outline_pixels = set()
+    for x, y in opaque:
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            nx, ny = x + dx, y + dy
+            if (nx, ny) not in opaque:
+                outline_pixels.add((x, y))
+                break
+    # Also draw outline into adjacent empty for crisp silhouette (prefer inward outline for small size)
+    for x, y in outline_pixels:
+        data[x, y] = OUTLINE
+
+    # Internal edge between faces (top/left, top/right, left/right)
+    for y in range(size):
+        for x in range(size):
+            if data[x, y][3] == 0:
+                continue
+            f = face_at(x, y)
+            for dx, dy in ((1, 0), (0, 1)):
+                nx, ny = x + dx, y + dy
+                if 0 <= nx < size and 0 <= ny < size and data[nx, ny][3] > 0:
+                    nf = face_at(nx, ny)
+                    if f and nf and f != nf:
+                        # soft seam
+                        data[x, y] = OUTLINE
+
+    return im
+
+
+def add_ore_specks(im, name):
+    data = im.load()
+    size = im.size[0]
+    colors = {
+        "coal_ore": [(25, 25, 28), (45, 45, 50)],
+        "iron_ore": [(210, 185, 155), (160, 140, 120)],
+        "gold_ore": [(235, 200, 60), (200, 160, 40)],
+    }
+    cols = colors.get(name)
+    if not cols:
+        return im
+    # place a few speckles on top and sides (non-outline)
+    spots = [
+        (5, 4), (8, 3), (10, 5), (6, 6),
+        (4, 9), (5, 11), (9, 10), (11, 8), (7, 12),
+    ]
+    for i, (x, y) in enumerate(spots):
+        if 0 <= x < size and 0 <= y < size and data[x, y][3] > 200:
+            if data[x, y][:3] != OUTLINE[:3]:
+                c = cols[i % len(cols)]
+                data[x, y] = (c[0], c[1], c[2], 255)
+    return im
+
+
+def detail_for(name):
+    if name in ("farmland", "wet_farmland"):
+        return "furrows"
+    if name == "grass" or name.startswith("grass_"):
+        return "grass_dots"
+    if "plank" in name or name in ("wood", "wood_wall", "crate", "fence_block"):
+        return "planks"
+    if "brick" in name:
+        return "bricks"
+    if name.endswith("_ore"):
+        return "ore"
+    return None
+
+
+def list_blocks():
+    tops = {f[:-8] for f in os.listdir(TOP_DIR) if f.endswith("_top.png")}
+    # exclude water animation frames
+    tops = {t for t in tops if not (t.startswith("water_top_") or t.startswith("water_") and t[-1].isdigit())}
+    # water_top.png -> name water; already water from water_top.png => "water" if file is water_top.png
+    # Actually water_top.png -> replace _top.png -> "water". water_top_1.png -> "water_top_1" - filter those
+    tops = {t for t in tops if not t.startswith("water_top")}
+    fronts = {f[:-10] for f in os.listdir(FRONT_DIR) if f.endswith("_front.png")}
+    both = sorted(tops & fronts)
+    # water has top only
+    extra = []
+    if (TOP_DIR / "water_top.png").exists():
+        extra.append("water")
+    return both, extra
+
+
+def should_skip(name):
+    for suf in SKIP_SUFFIXES:
+        if name.endswith(suf):
+            return True
+    return False
+
+
+def make_held(name):
+    slab = name.endswith(SLAB_SUFFIX)
+    top, left, right, alpha, highlight = pick_top_front(name)
+    # For slabs use base block colors if slab-specific weird
+    detail = detail_for(name)
+    im = draw_cube(
+        size=16,
+        top=top,
+        left=left,
+        right=right,
+        alpha=alpha,
+        highlight=highlight,
+        slab=slab,
+        detail=detail,
+    )
+    if name.endswith("_ore"):
+        im = add_ore_specks(im, name)
+    return im
+
+
+def contact_sheet(images: list[tuple[str, Image.Image]], cols=8, pad=2, label=False):
+    if not images:
+        return Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+    cell = 16
+    rows = math.ceil(len(images) / cols)
+    # scale up 2x for readability in preview
+    scale = 2
+    cw = cell * scale + pad
+    ch = cell * scale + pad + (10 if label else 0)
+    sheet = Image.new("RGBA", (cols * cw + pad, rows * ch + pad), (40, 32, 28, 255))
+    for i, (name, im) in enumerate(images):
+        r, c = divmod(i, cols)
+        x = pad + c * cw
+        y = pad + r * ch
+        big = im.resize((cell * scale, cell * scale), Image.NEAREST)
+        sheet.paste(big, (x, y), big)
+    return sheet
+
+
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    MIRROR_DIR.mkdir(parents=True, exist_ok=True)
+
+    both, extra = list_blocks()
+    generated = []
+    skipped = []
+
+    for name in both:
+        if should_skip(name):
+            skipped.append(name)
+            continue
+        im = make_held(name)
+        out = OUT_DIR / f"{name}_held.png"
+        im.save(out)
+        mirror = MIRROR_DIR / f"{name}_held.png"
+        im.save(mirror)
+        generated.append((name, im))
+
+    for name in extra:
+        im = make_held(name)
+        out = OUT_DIR / f"{name}_held.png"
+        im.save(out)
+        im.save(MIRROR_DIR / f"{name}_held.png")
+        generated.append((name, im))
+
+    # preview
+    generated.sort(key=lambda x: x[0])
+    sheet = contact_sheet(generated, cols=8)
+    preview = OUT_DIR / "_preview.png"
+    sheet.save(preview)
+    sheet.save(MIRROR_DIR / "_preview.png")
+
+    print("GENERATED", len(generated))
+    for n, _ in generated:
+        print(" ", n)
+    print("SKIPPED", len(skipped))
+    for n in skipped:
+        print(" ", n)
+    print("OUT", OUT_DIR)
+    print("MIRROR", MIRROR_DIR)
+    print("PREVIEW", preview)
+
+
+if __name__ == "__main__":
+    main()
