@@ -8,6 +8,7 @@
 - Sprites for the player, items, and blocks
 - Whatever's in your hand gets displayed
 - Customizable controls
+- Working stairs and slabs
 
 ## Problems I ran into
 - The player would be visible with blocks in the way (still kind of a bug)
