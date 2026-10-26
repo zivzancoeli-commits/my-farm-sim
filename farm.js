@@ -210,13 +210,22 @@ function hasBlock(x, y, z) {
     return blocks.some(b => b.x === x && b.y === y && b.z === z);
 }
 const scale = 0.1;
+
 function drawBlock(name, x, y, z) {
     let t = blockTypes[name];
     if (!t) return;
+    let h = blockHeight(name);
     let { sx, sy, s } = toScreen(x, y, z);
-    if (!hasBlock(x - 1, y, z)) ctx.drawImage(t.left, sx + 0, sy + 13 * s, 33 * s, 502 * s);
-    if (!hasBlock(x, y, z - 1)) ctx.drawImage(t.front, sx + 31 * s, sy + 184 * s, 367 * s, 334 * s);
-    ctx.drawImage(t.top, sx, sy, 398 * s, 199 * s);
+    // half-blocks sit on the bottom of their cell
+    let drop = (1 - h) * 318 * s;
+    let topSy = sy + drop;
+    if (!hasBlock(x - 1, y, z)) {
+        ctx.drawImage(t.left, sx + 0, topSy + 13 * s, 33 * s, 502 * s * h);
+    }
+    if (!hasBlock(x, y, z - 1)) {
+        ctx.drawImage(t.front, sx + 31 * s, topSy + 184 * s * h, 367 * s, 334 * s * h);
+    }
+    ctx.drawImage(t.top, sx, topSy, 398 * s, 199 * s);
 }
 
 function toScreen(x, y, z) {
