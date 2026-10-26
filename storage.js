@@ -27,7 +27,7 @@ function makeGround() {
         else list.push({ block: name, x: x, y: 0, z: z });
     }
 
-    // hill base (dirt) + grass on top
+    // raised hill: dirt under, grass on top
     setGround(4, 4, "dirt");
     setGround(5, 4, "dirt");
     setGround(4, 5, "dirt");
@@ -37,15 +37,16 @@ function makeGround() {
     list.push({ block: "grass", x: 4, y: 1, z: 5 });
     list.push({ block: "grass", x: 5, y: 1, z: 5 });
 
-    // slopes + stairs up the hill
-    setGround(3, 4, "grass_slope");
-    setGround(3, 5, "grass_slope");
-    setGround(4, 3, "grass_slope");
-    setGround(5, 3, "grass_slope");
-    setGround(6, 4, "stone_stairs");
-    setGround(6, 5, "stone_stairs");
+    // full-block “steps” around the hill (no slabs)
+    setGround(3, 4, "dirt");
+    setGround(3, 5, "dirt");
+    setGround(4, 3, "dirt");
+    setGround(5, 3, "dirt");
+    setGround(6, 4, "cobblestone");
+    setGround(6, 5, "cobblestone");
+    setGround(6, 3, "stone_path");
 
-    // path
+    // path from spawn
     setGround(0, 1, "gravel_path");
     setGround(0, 2, "gravel_path");
     setGround(1, 2, "gravel_path");
@@ -53,15 +54,13 @@ function makeGround() {
     setGround(3, 2, "stone_path");
     setGround(3, 3, "stone_path");
 
-    // clutter
-    setGround(-2, -1, "wood_slab");
-    setGround(-3, -1, "stone_slab");
+    // clutter (full blocks only)
     setGround(-4, 0, "crate");
     setGround(-5, 0, "wood_planks");
     setGround(-5, 1, "fence_block");
     setGround(-5, -1, "fence_block");
     setGround(2, -3, "cobblestone");
-    setGround(1, -3, "cobblestone_stairs");
+    setGround(1, -3, "stone_brick");
     setGround(-6, -5, "sand");
     setGround(-5, -5, "sand");
     setGround(-6, -4, "sand");
