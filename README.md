@@ -15,6 +15,7 @@
 - Each block moved separately
 - You could walk through blocks if it was in the corner but now it checks if you're going diagonally
 - It shook whenever you moved because of a camera smoothing change I added
+- If you pull out the dirt it might crash your game. This is still going on so I recommend only playing with the grass for now
 
 ## What I'm adding next
 - World generation that will "borrow" the way Minecraft does it using sound
