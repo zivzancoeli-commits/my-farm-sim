@@ -30,30 +30,61 @@ function makeGround() {
     list.push({ block: "grass", x: 5, y: 1, z: 5 });
     list.push({ block: "grass_slope", x: 3, y: 0, z: 4 });
     list.push({ block: "grass_slope", x: 3, y: 0, z: 5 });
-    list.push({ block: "grass_slope", x: 4, y: 0, z: 3 });
-    list.push({ block: "grass_slope", x: 5, y: 0, z: 3 });
-    list.push({ block: "stone_stairs", x: 6, y: 0, z: 4 });
-    list.push({ block: "stone_stairs", x: 6, y: 0, z: 5 });
-    list.push({ block: "gravel_path", x: 0, y: 0, z: 1 });
-    list.push({ block: "gravel_path", x: 0, y: 0, z: 2 });
-    list.push({ block: "gravel_path", x: 1, y: 0, z: 2 });
-    list.push({ block: "gravel_path", x: 2, y: 0, z: 2 });
-    list.push({ block: "stone_path", x: 3, y: 0, z: 2 });
-    list.push({ block: "stone_path", x: 3, y: 0, z: 3 });
-    list.push({ block: "wood_slab", x: -2, y: 0, z: -1 });
-    list.push({ block: "stone_slab", x: -3, y: 0, z: -1 });
-    list.push({ block: "crate", x: -4, y: 0, z: 0 });
-    list.push({ block: "wood_planks", x: -5, y: 0, z: 0 });
-    list.push({ block: "fence_block", x: -5, y: 0, z: 1 });
-    list.push({ block: "fence_block", x: -5, y: 0, z: -1 });
-    list.push({ block: "cobblestone", x: 2, y: 0, z: -3 });
-    list.push({ block: "cobblestone_stairs", x: 1, y: 0, z: -3 });
-    list.push({ block: "sand", x: -6, y: 0, z: -5 });
-    list.push({ block: "sand", x: -5, y: 0, z: -5 });
-    list.push({ block: "sand", x: -6, y: 0, z: -4 });
+function makeGround() {
+    let list = [];
+    for (let x = -7; x <= 7; x++) {
+        for (let z = -7; z <= 7; z++) {
+            list.push({ block: "grass", x: x, y: 0, z: z });
+        }
+    }
+
+    function setGround(x, z, name) {
+        let i = list.findIndex(b => b.x === x && b.y === 0 && b.z === z);
+        if (i !== -1) list[i].block = name;
+        else list.push({ block: name, x: x, y: 0, z: z });
+    }
+
+    // hill base (dirt) + grass on top
+    setGround(4, 4, "dirt");
+    setGround(5, 4, "dirt");
+    setGround(4, 5, "dirt");
+    setGround(5, 5, "dirt");
+    list.push({ block: "grass", x: 4, y: 1, z: 4 });
+    list.push({ block: "grass", x: 5, y: 1, z: 4 });
+    list.push({ block: "grass", x: 4, y: 1, z: 5 });
+    list.push({ block: "grass", x: 5, y: 1, z: 5 });
+
+    // slopes + stairs up the hill
+    setGround(3, 4, "grass_slope");
+    setGround(3, 5, "grass_slope");
+    setGround(4, 3, "grass_slope");
+    setGround(5, 3, "grass_slope");
+    setGround(6, 4, "stone_stairs");
+    setGround(6, 5, "stone_stairs");
+
+    // path
+    setGround(0, 1, "gravel_path");
+    setGround(0, 2, "gravel_path");
+    setGround(1, 2, "gravel_path");
+    setGround(2, 2, "gravel_path");
+    setGround(3, 2, "stone_path");
+    setGround(3, 3, "stone_path");
+
+    // clutter
+    setGround(-2, -1, "wood_slab");
+    setGround(-3, -1, "stone_slab");
+    setGround(-4, 0, "crate");
+    setGround(-5, 0, "wood_planks");
+    setGround(-5, 1, "fence_block");
+    setGround(-5, -1, "fence_block");
+    setGround(2, -3, "cobblestone");
+    setGround(1, -3, "cobblestone_stairs");
+    setGround(-6, -5, "sand");
+    setGround(-5, -5, "sand");
+    setGround(-6, -4, "sand");
+
     return list;
 }
-
 function saveWorld() {
     currentWorld.blocks = blocks;
     localStorage.setItem("world" + currentSlot, JSON.stringify(currentWorld));
