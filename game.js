@@ -45,17 +45,24 @@ function gameLoop() {
 
   // for checks and changes here
   if (Scene === "WorldSelector") {
-  // spring back if past the edges
- if (targetScrollY < 0) {
-    targetScrollY += (0 - targetScrollY) * 0.2;
+    // spring back if past the edges
+    if (targetScrollY < 0) {
+      targetScrollY += (0 - targetScrollY) * 0.2;
+    }
+    if (targetScrollY > maxScroll) {
+      targetScrollY += (maxScroll - targetScrollY) * 0.2;
+    }
+    // slide the real scroll toward the target
+    scrollY += (targetScrollY - scrollY) * 0.15;
+  } else if (Scene === "Controls") {
+    if (controlsTargetScroll < 0) controlsTargetScroll = 0;
+    if (controlsTargetScroll > controlsMaxScroll) controlsTargetScroll = controlsMaxScroll;
+    controlsScroll += (controlsTargetScroll - controlsScroll) * 0.2;
+    scrollY = controlsScroll;
+  } else {
+    scrollY = 0;
   }
-  if (targetScrollY > maxScroll) {
-   targetScrollY += (maxScroll - targetScrollY) * 0.2;
- }
-   // slide the real scroll toward the target
-   scrollY += (targetScrollY - scrollY) * 0.15;
-  }
-    
+
   if (Scene === "World1") {
     updatePlayer();
     drawWorld();

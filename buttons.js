@@ -157,6 +157,144 @@ let settings = {
     Scene = "Settings";
   }
 };
+let controls = {
+  x: canvas.width / 4 - 50,
+  y: 150,
+  width: 100,
+  height: 50,
+  text: "Controls",
+  Scene: "Settings",
+  Layer: 1,
+  color: "green",
+  hoverColor: "blue",
+  textColor: "white",
+  font: "15px sans-serif",
+  scrolls: false,
+  onClick: () => {
+    controlsScroll = 0;
+    controlsTargetScroll = 0;
+    scrollY = 0;
+    waitingBind = null;
+    refreshControlButtons();
+    Scene = "Controls";
+  }
+};
+
+const controlOrder = [
+  "moveUp", "moveDown", "moveLeft", "moveRight",
+  "break", "place",
+  "hotbar1", "hotbar2", "hotbar3", "hotbar4", "hotbar5",
+  "hotbar6", "hotbar7", "hotbar8", "hotbar9"
+];
+let controlBindButtons = [];
+function buildControlButtons() {
+  controlBindButtons = [];
+  let startY = 90;
+  let rowH = 36;
+  for (let i = 0; i < controlOrder.length; i++) {
+    let action = controlOrder[i];
+    let y = startY + i * rowH;
+    let labelBtn = {
+      x: 80, y: y, width: 220, height: 32,
+      action: action,
+      text: controlLabels[action],
+      Scene: "Controls",
+      Layer: 1,
+      color: "transparent",
+      hoverColor: "transparent",
+      textColor: "white",
+      font: "16px sans-serif",
+      scrolls: true,
+      onClick: () => {}
+    };
+    let keyBtn = {
+      x: 320, y: y, width: 160, height: 32,
+      action: action,
+      text: keyLabel(controlsMap[action]),
+      Scene: "Controls",
+      Layer: 1,
+      color: "rgb(60, 60, 60)",
+      hoverColor: "rgb(90, 90, 90)",
+      textColor: "white",
+      font: "15px sans-serif",
+      scrolls: true,
+      onClick: () => {
+        waitingBind = action;
+        refreshControlButtons();
+      }
+    };
+    controlBindButtons.push(labelBtn, keyBtn);
+  }
+  controlsMaxScroll = Math.max(0, startY + controlOrder.length * rowH - 320);
+}
+
+function refreshControlButtons() {
+  for (let b of controlBindButtons) {
+    if (!b.action || b.color === "transparent") continue;
+    if (waitingBind === b.action) {
+      b.text = "> press key <";
+      b.color = "rgb(120, 90, 40)";
+      b.hoverColor = "rgb(140, 110, 50)";
+    } else {
+      b.text = keyLabel(controlsMap[b.action]);
+      b.color = "rgb(60, 60, 60)";
+      b.hoverColor = "rgb(90, 90, 90)";
+    }
+  }
+}
+
+buildControlButtons();
+refreshControlButtons();
+
+let leaveControls = {
+  x: 25, y: 25, width: 50, height: 50,
+  text: "<",
+  Scene: "Controls",
+  Layer: 3,
+  color: "transparent",
+  hoverColor: "transparent",
+  textColor: "white",
+  font: "30px sans-serif",
+  scrolls: false,
+  onClick: () => {
+    waitingBind = null;
+    refreshControlButtons();
+    Scene = "Settings";
+  }
+};
+
+let controlsTitle = {
+  x: 170, y: 30, width: 300, height: 40,
+  text: "Controls",
+  Scene: "Controls",
+  Layer: 3,
+  color: "transparent",
+  hoverColor: "transparent",
+  textColor: "white",
+  font: "22px sans-serif",
+  scrolls: false,
+  onClick: () => {}
+};
+
+let resetControls = {
+  x: 220, y: 420, width: 200, height: 40,
+  text: "Reset Defaults",
+  Scene: "Controls",
+  Layer: 3,
+  color: "rgb(80, 50, 50)",
+  hoverColor: "rgb(110, 70, 70)",
+  textColor: "white",
+  font: "15px sans-serif",
+  scrolls: false,
+  onClick: () => {
+    controlsMap = Object.assign({}, defaultControls);
+    saveControls();
+    waitingBind = null;
+    refreshControlButtons();
+  }
+};
+
+
 let leaveSettings = {
   x: 25,
   y: 25,
@@ -174,6 +312,8 @@ let leaveSettings = {
     Scene = "MainScreen";
   }
 };
+
+
 
 
 
@@ -208,7 +348,7 @@ let quit = {
 
 
 
-let buttons = [play, settings, quit, leaveSettings, leaveWorldSelector, WorldBox1, worldSelectorTopBar, worldNameBox, leaveWorldCreator, createWorldButton, WorldBox1Delete];
+let buttons = [play, settings, quit, leaveSettings, leaveWorldSelector, WorldBox1, worldSelectorTopBar, worldNameBox, leaveWorldCreator, createWorldButton, WorldBox1Delete, controls, leaveControls, controlsTitle, resetControls, ...controlBindButtons];
 
 
 

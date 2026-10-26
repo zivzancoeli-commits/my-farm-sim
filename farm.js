@@ -40,14 +40,51 @@ function drawHotbar() {
     }
 }
 
-function addBlock(name, solid, tool, breakTime) {
+function addBlock(name, solid, tool, breakTime, height) {
     let top = new Image(); top.src = "sprites/blocks/top/" + name + "_top.png";
     let front = new Image(); front.src = "sprites/blocks/front/" + name + "_front.png";
     let left = new Image(); left.src = "sprites/blocks/angled/" + name + "_left.png";
-    blockTypes[name] = { top, front, left, solid, tool, breakTime };
+    blockTypes[name] = { top, front, left, solid, tool, breakTime: breakTime || 0.5, height: height == null ? 1 : height };
 }
+
+// full blocks
 addBlock("grass", true, "shovel", 0.5);
 addBlock("dirt", true, "shovel", 0.5);
+addBlock("mud", true, "shovel", 0.5);
+addBlock("sand", true, "shovel", 0.4);
+addBlock("gravel_path", true, "shovel", 0.4);
+addBlock("farmland", true, "shovel", 0.5);
+addBlock("wet_farmland", true, "shovel", 0.5);
+addBlock("stone", true, "pickaxe", 1.2);
+addBlock("stone_brick", true, "pickaxe", 1.4);
+addBlock("stone_path", true, "pickaxe", 0.8);
+addBlock("cobblestone", true, "pickaxe", 1.2);
+addBlock("coal_ore", true, "pickaxe", 1.5);
+addBlock("iron_ore", true, "pickaxe", 1.8);
+addBlock("gold_ore", true, "pickaxe", 2.0);
+addBlock("brick_wall", true, "pickaxe", 1.4);
+addBlock("white_plaster", true, "pickaxe", 1.0);
+addBlock("glass_block", true, "pickaxe", 0.6);
+addBlock("roof_shingles", true, "pickaxe", 1.0);
+addBlock("wood", true, "axe", 1.0);
+addBlock("wood_wall", true, "axe", 1.0);
+addBlock("wood_planks", true, "axe", 0.8);
+addBlock("dark_wood_planks", true, "axe", 0.8);
+addBlock("fence_block", true, "axe", 0.6);
+addBlock("crate", true, "axe", 0.7);
+
+// half blocks
+
+addBlock("grass_slab", true, "shovel", 0.4, 0.5);
+addBlock("dirt_slab", true, "shovel", 0.4, 0.5);
+addBlock("stone_slab", true, "pickaxe", 0.7, 0.5);
+addBlock("wood_slab", true, "axe", 0.5, 0.5);
+addBlock("grass_slope", true, "shovel", 0.4, 0.5);
+addBlock("dirt_slope", true, "shovel", 0.4, 0.5);
+addBlock("stone_slope", true, "pickaxe", 0.7, 0.5);
+addBlock("stone_stairs", true, "pickaxe", 0.8, 0.5);
+addBlock("cobblestone_stairs", true, "pickaxe", 0.8, 0.5);
+addBlock("wood_stairs", true, "axe", 0.6, 0.5);
 
 const toolSpeeds = {
     shovel: { shovel: 1},
@@ -160,15 +197,22 @@ function drawHeldOverlay(dir, x, y, ps, img) {
 
 let blocks = [
     { block: "grass", x: 0, y: 0, z: 0 },
-    { block: "dirt", x: 1, y: 0, z: 0 },
+    { block: "grass", x: 1, y: 0, z: 0 },
+    { block: "grass_slope", x: 2, y: 0, z: 0 },
+    { block: "grass", x: 3, y: 0, z: 0 },
+    { block: "grass", x: 3, y: 1, z: 0 },
+    { block: "grass_slab", x: 0, y: 0, z: 1 },
+    { block: "stone_stairs", x: 1, y: 0, z: 1 },
+    { block: "dirt", x: 2, y: 0, z: 1 },
+    { block: "dirt", x: 2, y: 1, z: 1 }
 ]
 function hasBlock(x, y, z) {
     return blocks.some(b => b.x === x && b.y === y && b.z === z);
 }
 const scale = 0.1;
 function drawBlock(name, x, y, z) {
-   
     let t = blockTypes[name];
+    if (!t) return;
     let { sx, sy, s } = toScreen(x, y, z);
     if (!hasBlock(x - 1, y, z)) ctx.drawImage(t.left, sx + 0, sy + 13 * s, 33 * s, 502 * s);
     if (!hasBlock(x, y, z - 1)) ctx.drawImage(t.front, sx + 31 * s, sy + 184 * s, 367 * s, 334 * s);
@@ -211,7 +255,7 @@ function drawPlayer(p) {
     let y = pos.sy;
     let held = hotbar[selected];
     let tool = held && held.tool;
-    let moving = keys["arrowleft"] || keys["arrowright"] || keys["arrowup"] || keys["arrowdown"];
+    let moving = isActionDown("moveLeft") || isActionDown("moveRight") || isActionDown("moveUp") || isActionDown("moveDown");
     let wf = Math.floor(performance.now() / 120) % 4 + 1;
 
     if (breaking) {
@@ -254,13 +298,19 @@ function drawPlayer(p) {
     if (!behind && icon) drawHeldOverlay(dir, x, y, ps, icon);
 }
 
+function blockHeight(name) {
+    let t = blockTypes[name];
+    return t && t.height != null ? t.height : 1;
+}
+
 function groundHeight(x, z) {
     let tx = Math.round(x);
     let tz =  Math.round(z);
     let top = null;
     for (let b of blocks) {
         if (b.x === tx && b.z === tz) {
-            if (top === null || b.y + 1 > top) top = b.y + 1;
+            let h = b.y + blockHeight(b.block);
+            if (top === null || h > top) top = h;
         }
     }
     return top;
@@ -273,10 +323,10 @@ function updatePlayer() {
     let nz = p.z;
     let dx = 0;
     let dz = 0;
-    if (keys["arrowleft"]) dx -= 1;
-    if (keys["arrowright"]) dx += 1;
-    if (keys["arrowup"]) dz += 1;
-    if (keys["arrowdown"]) dz -= 1;
+    if (isActionDown("moveLeft")) dx -= 1;
+    if (isActionDown("moveRight")) dx += 1;
+    if (isActionDown("moveUp")) dz += 1;
+    if (isActionDown("moveDown")) dz -= 1;
     if (dx !== 0) nx += dx * speed;
     if (dz !== 0) nz += dz * speed;
     if (dx !== 0 || dz !== 0) facing = { x: dx, z: dz };
@@ -323,16 +373,21 @@ document.addEventListener("keydown", (e) => {
     let p = currentWorld.player;
     let tx = Math.round(p.x + facing.x);
     let tz = Math.round(p.z + facing.z);
-    if (e.key >= "1" && e.key <= "9") selected = Number(e.key) - 1;
-    if (e.key === "b") {
-        if (breaking) { breaking = null; return }
-        let levels = [p.y + 1, p.y];
+    let k = e.key.toLowerCase();
+    for (let i = 1; i <= 9; i++) {
+        if (k === controlsMap["hotbar" + i]) selected = i - 1;
+    }
+    if (k === controlsMap.break) {
+        if (breaking) { breaking = null; return; }
+        let levels = [...new Set([Math.floor(p.y), Math.ceil(p.y), Math.floor(p.y) + 1])].filter(y => y >= 0);
         for (let y of levels) {
             let hit = blocks.find(b => b.x === tx && b.y === y && b.z === tz);
             if (hit) {
                 let held = hotbar[selected];
                 if (!held || !held.tool) break;
-                let speed = toolSpeeds[held.tool][blockTypes[hit.block].tool];
+                let bt = blockTypes[hit.block];
+                if (!bt) break;
+                let speed = toolSpeeds[held.tool][bt.tool];
                 if (!speed) break;
                 breaking = {
                     hit: hit,
@@ -340,17 +395,16 @@ document.addEventListener("keydown", (e) => {
                     px: p.x,
                     pz: p.z,
                     start: performance.now(),
-                    time: blockTypes[hit.block].breakTime / speed * 1000
+                    time: bt.breakTime / speed * 1000
                 };
                 break;
             }
         }
     }
-    
-    if (e.key === "p") {
+    if (k === controlsMap.place) {
         let slot = hotbar[selected];
         if (slot && slot.block && slot.count > 0) {
-            let levels = [p.y, p.y + 1];
+            let levels = [...new Set([Math.floor(p.y), Math.ceil(p.y), Math.floor(p.y) + 1])].filter(y => y >= 0);
             for (let y of levels) {
                 if (!hasBlock(tx, y, tz)) {
                     blocks.push({ block: slot.block, x: tx, y: y, z: tz });
