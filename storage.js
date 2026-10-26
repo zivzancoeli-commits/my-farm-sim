@@ -17,23 +17,6 @@ function makeGround() {
     let list = [];
     for (let x = -7; x <= 7; x++) {
         for (let z = -7; z <= 7; z++) {
-            list.push({ block: "grass", x: x, y: 0, z: z});
-        }
-    }
-    list.push({ block: "dirt", x: 4, y: 0, z: 4 });
-    list.push({ block: "dirt", x: 5, y: 0, z: 4 });
-    list.push({ block: "dirt", x: 4, y: 0, z: 5 });
-    list.push({ block: "dirt", x: 5, y: 0, z: 5 });
-    list.push({ block: "grass", x: 4, y: 1, z: 4 });
-    list.push({ block: "grass", x: 5, y: 1, z: 4 });
-    list.push({ block: "grass", x: 4, y: 1, z: 5 });
-    list.push({ block: "grass", x: 5, y: 1, z: 5 });
-    list.push({ block: "grass_slope", x: 3, y: 0, z: 4 });
-    list.push({ block: "grass_slope", x: 3, y: 0, z: 5 });
-function makeGround() {
-    let list = [];
-    for (let x = -7; x <= 7; x++) {
-        for (let z = -7; z <= 7; z++) {
             list.push({ block: "grass", x: x, y: 0, z: z });
         }
     }
@@ -85,6 +68,7 @@ function makeGround() {
 
     return list;
 }
+
 function saveWorld() {
     currentWorld.blocks = blocks;
     localStorage.setItem("world" + currentSlot, JSON.stringify(currentWorld));
@@ -98,6 +82,6 @@ function createWorld(choices) {
         map: choices.map,
         coins: choices.startCoins,
         day: 1,
-        player: {x: 0, y: 0, z: 0}
+        player: { x: 0, y: 0, z: 0 }
     };
 }
