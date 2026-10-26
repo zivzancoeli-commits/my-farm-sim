@@ -211,21 +211,37 @@ function hasBlock(x, y, z) {
 }
 const scale = 0.1;
 
+// Slab top sprites only have pixels in a thin bottom strip, so drawing
+// them as a floor diamond leaves a hole. Use the matching full-block top.
+const slabTopOf = {
+    grass_slab: "grass",
+    dirt_slab: "dirt",
+    stone_slab: "stone",
+    wood_slab: "wood_planks"
+};
+
 function drawBlock(name, x, y, z) {
     let t = blockTypes[name];
     if (!t) return;
     let h = blockHeight(name);
     let { sx, sy, s } = toScreen(x, y, z);
-    // half-blocks sit on the bottom of their cell
+    // World y-step is 318px. A 0.5-tall block sits on the cell floor, so
+    // its top is lowered by the unused half-step. Side sprites are taller
+    // than that y-step (left 502, front 334); shrink them by `drop` so the
+    // bottom of the cube stays on the same floor instead of scaling by h
+    // (which turned stairs at y=1 into tall pillars).
     let drop = (1 - h) * 318 * s;
     let topSy = sy + drop;
     if (!hasBlock(x - 1, y, z)) {
-        ctx.drawImage(t.left, sx + 0, topSy + 13 * s, 33 * s, 502 * s * h);
+        ctx.drawImage(t.left, sx, topSy + 13 * s, 33 * s, Math.max(0, 502 * s - drop));
     }
     if (!hasBlock(x, y, z - 1)) {
-        ctx.drawImage(t.front, sx + 31 * s, topSy + 184 * s * h, 367 * s, 334 * s * h);
+        ctx.drawImage(t.front, sx + 31 * s, topSy + 184 * s, 367 * s, Math.max(0, 334 * s - drop));
     }
-    ctx.drawImage(t.top, sx, topSy, 398 * s, 199 * s);
+    let top = t.top;
+    let alias = slabTopOf[name];
+    if (alias && blockTypes[alias]) top = blockTypes[alias].top;
+    ctx.drawImage(top, sx, topSy, 398 * s, 199 * s);
 }
 
 function toScreen(x, y, z) {
@@ -242,17 +258,17 @@ function toScreen(x, y, z) {
 }
 
 function drawWorld() {
-    blocks.sort((a, b) => b.z - a.z || b.x - a.x || a.y - b.y);
-    let p = currentWorld.player;
-    let playerDrawn = false;
-    for (let b of blocks) {
-        if (!playerDrawn && b.z < Math.round(p.z)) {
-            drawPlayer(p);
-            playerDrawn = true;
-        }
-        drawBlock(b.block, b.x, b.y, b.z);
-    }
-    if (!playerDrawn) drawPlayer(p);
+    // Ground tiles first, then anything at y>=1, so a raised hill's sides
+    // are not covered by the grass in front of it.
+    let lower = [];
+    let upper = [];
+    for (let b of blocks) (b.y >= 1 ? upper : lower).push(b);
+    let byDepth = (a, b) => b.z - a.z || b.x - a.x || a.y - b.y;
+    lower.sort(byDepth);
+    upper.sort(byDepth);
+    for (let b of lower) drawBlock(b.block, b.x, b.y, b.z);
+    for (let b of upper) drawBlock(b.block, b.x, b.y, b.z);
+    drawPlayer(currentWorld.player);
     drawHotbar();
 }
 

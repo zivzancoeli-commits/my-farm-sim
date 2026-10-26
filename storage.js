@@ -27,7 +27,14 @@ function makeGround() {
         else list.push({ block: name, x: x, y: 0, z: z });
     }
 
-    // hill top: dirt under + grass on top (surface height 2)
+    // Full block at y=0 plus a half-block at y=1: surface = 1.5
+    // (a lone half-block at y=0 has surface 0.5, which is a step down).
+    function addStep(x, z, base, step) {
+        setGround(x, z, base);
+        list.push({ block: step, x: x, y: 1, z: z });
+    }
+
+    // Raised grass hill: dirt under + grass on top (surface = 2).
     setGround(4, 4, "dirt");
     setGround(5, 4, "dirt");
     setGround(4, 5, "dirt");
@@ -37,26 +44,24 @@ function makeGround() {
     list.push({ block: "grass", x: 4, y: 1, z: 5 });
     list.push({ block: "grass", x: 5, y: 1, z: 5 });
 
-    // steps: full block at y=0, stairs on top at y=1 (surface 1.5)
-    setGround(6, 4, "cobblestone");
-    setGround(6, 5, "cobblestone");
-    list.push({ block: "stone_stairs", x: 6, y: 1, z: 4 });
-    list.push({ block: "stone_stairs", x: 6, y: 1, z: 5 });
+    // Stone stairs on the path side (south, -z) and the east side (+x).
+    // Grass floor (1) → stair (1.5) → hill (2), each step 0.5.
+    addStep(4, 3, "cobblestone", "stone_stairs");
+    addStep(5, 3, "cobblestone", "stone_stairs");
+    addStep(6, 4, "cobblestone", "stone_stairs");
+    addStep(6, 5, "cobblestone", "stone_stairs");
 
-    setGround(3, 4, "cobblestone");
-    setGround(3, 5, "cobblestone");
-    list.push({ block: "stone_stairs", x: 3, y: 1, z: 4 });
-    list.push({ block: "stone_stairs", x: 3, y: 1, z: 5 });
-
-    // path
+    // path leading to the south stairs
     setGround(0, 1, "gravel_path");
     setGround(0, 2, "gravel_path");
     setGround(1, 2, "gravel_path");
     setGround(2, 2, "gravel_path");
     setGround(3, 2, "stone_path");
     setGround(3, 3, "stone_path");
+    setGround(4, 2, "stone_path");
+    setGround(5, 2, "stone_path");
 
-    // clutter
+    // clutter (full blocks only — lone slabs at y=0 punch holes in the floor)
     setGround(-4, 0, "crate");
     setGround(-5, 0, "wood_planks");
     setGround(-5, 1, "fence_block");
